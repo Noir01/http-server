@@ -46,29 +46,26 @@ main = do
     -- Handle the clientSocket as needed...
     req <- readRequestLine clientSocket
     hs <- readHeaders clientSocket
-    BC.putStrLn $ "URI: " <> BC.pack (show req)
     if method req == GET
       then do
         case uri req of
           Home -> do
             _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
-            pure ()
+            close clientSocket
           Unknown _ -> do
             _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
-            pure ()
+            close clientSocket
           Echo s -> do
             _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
-            pure ()
+            close clientSocket
           UserAgent -> do
             case findUserAgent hs of
               Nothing -> do
                 _ <- send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
-                pure ()
+                close clientSocket
               Just ua -> do
                 _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua
-                putStr "sent"
-        close clientSocket
-        putStr "closed"
+                close clientSocket
       else do
         _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
         close clientSocket
@@ -89,7 +86,6 @@ getNextData s = go s ""
 readRequestLine :: Socket -> IO Req
 readRequestLine sock = do
     reqInput <- getNextData sock 
-    BC.putStrLn ("input: " <> reqInput)
     either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
 
 readHeaders :: Socket -> IO [Header]

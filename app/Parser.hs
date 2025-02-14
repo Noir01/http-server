@@ -18,7 +18,6 @@ import Network.HTTP.Types (HttpVersion (..), StdMethod (..))
 import Request (Header (..), Req (..), URI (..))
 import Text.Megaparsec (Parsec, choice, failure, many, satisfy, takeWhileP, try)
 import Text.Megaparsec.Char (char, string)
-import Text.Megaparsec.Debug (dbg')
 import Text.Megaparsec.Stream (ShareInput (..), Stream (..), Token, Tokens, VisualStream (..))
 
 newtype ByteStringWithChars = BS BC.ByteString
@@ -127,13 +126,13 @@ caseInsensitiveString st = case BC.uncons st of
   Nothing -> pure ""
 
 userAgentHParser :: HeaderParser
-userAgentHParser = dbg' "header user agent" $ caseInsensitiveString "User-Agent" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> UserAgentH
+userAgentHParser = caseInsensitiveString "User-Agent" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> UserAgentH
 
 hostParser :: HeaderParser
-hostParser = dbg' "header host" $ caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> HostH
+hostParser = caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> HostH
 
 acceptParser :: HeaderParser
-acceptParser = dbg' "header accept" $ caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
+acceptParser = caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
 
 headerParser :: HeaderParser
 headerParser = choice [userAgentHParser, acceptParser, hostParser] <* string "\r\n"
