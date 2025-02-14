@@ -49,28 +49,16 @@ main = do
     if method req == GET
       then do
         case uri req of
-          Home -> do
-            _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
-            close clientSocket
-          Unknown _ -> do
-            _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
-            close clientSocket
-          Echo s -> do
-            _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
-            close clientSocket
+          Home -> send clientSocket "HTTP/1.1 200 OK\r\n\r\n" >>= const (return ())
+          Unknown _ -> send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" >>= const (return ())
+          Echo s -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s) >>= const (return ())
           UserAgent -> do
             case findUserAgent hs of
-              Nothing -> do
-                _ <- send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
-                close clientSocket
-              Just ua -> do
-                x <- send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua)
-                close clientSocket
-                print x
-      else do
-        _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
-        close clientSocket
+              Nothing -> send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n" >>= const (return ())
+              Just ua -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua) >>= const (return ())
+      else send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n" >>= const (return ())
     close clientSocket
+    putStrLn "closed"
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing
