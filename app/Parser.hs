@@ -3,13 +3,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Parser where
+module Parser (requestParser, Req(..), emptyReq, ByteStringWithChars(..)) where
 
 import Text.Megaparsec (choice, many, Parsec, satisfy, takeWhileP)
 import Data.Char (isDigit)
 import Text.Megaparsec.Char (string, char)
-import Text.Megaparsec.Stream (Stream(..), ShareInput(..), Token, Tokens)
+import Text.Megaparsec.Stream (Stream(..), ShareInput(..), Token, Tokens, VisualStream(..))
+import Text.Megaparsec.Debug (dbg')
 import Data.Proxy
+import qualified Data.List.NonEmpty as NE (toList)
 import Data.Void(Void)
 import Data.Functor (($>))
 import Data.Bifunctor (second)
@@ -45,6 +47,9 @@ instance Stream ByteStringWithChars where
   takeN_ n s = second unShareInput <$> takeN_ n (ShareInput s)
   takeWhile_ p s = second unShareInput $ takeWhile_ p (ShareInput s)
 
+instance VisualStream ByteStringWithChars where
+  showTokens Proxy = NE.toList 
+
 type MethodParser = Parsec Void ByteStringWithChars StdMethod
 
 type HTTPVersionParser = Parsec Void ByteStringWithChars HttpVersion
@@ -79,7 +84,7 @@ headParser :: MethodParser
 headParser = string "HEAD" $> HEAD
 
 methodParser :: MethodParser
-methodParser = choice [getParser, postParser, patchParser, putParser, optionsParser, deleteParser, connectParser, traceParser, headParser]
+methodParser = dbg' "method" $ choice [getParser, postParser, patchParser, putParser, optionsParser, deleteParser, connectParser, traceParser, headParser]
 
 httpVersionParser :: HTTPVersionParser
 httpVersionParser = string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor)))

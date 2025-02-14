@@ -21,8 +21,6 @@ import System.IO (BufferMode (..), hSetBuffering, stdout)
 import Text.Megaparsec (parse)
 import Parser (requestParser, Req(..), emptyReq, ByteStringWithChars(..))
 
-data Status = SUCCESS | FAIL
-
 main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
@@ -44,7 +42,9 @@ main = do
     (clientSocket, clientAddr) <- accept serverSocket
     BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
     -- Handle the clientSocket as needed...
-    req <- getNextData clientSocket >>= either (const $ return emptyReq) return . parse requestParser "" . BS
+    reqInput <- getNextData clientSocket
+    BC.putStrLn ("input: " <> reqInput)
+    req <- either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
     BC.putStrLn $ "URI: " <> BC.pack (show req)
     if uri req == "/"
         then do
