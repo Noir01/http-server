@@ -40,5 +40,11 @@ lengthParser = caseInsensitiveString "Content-Length" *> char ':' *> char ' ' *>
 typeParser :: HeaderParser
 typeParser = caseInsensitiveString "Content-Type" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (ContentTypeH . BC.unpack)
 
+acceptEncodingParser :: HeaderParser
+acceptEncodingParser = caseInsensitiveString "Accept-Encoding" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptEncodingH . BC.unpack)
+
+contentEncodingParser :: HeaderParser
+contentEncodingParser = caseInsensitiveString "Content-Encoding" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (ContetnEncodingH . BC.unpack)
+
 headerParser :: HeaderParser
-headerParser = choice [try userAgentHParser, try acceptParser, try lengthParser, try typeParser, hostParser] <* string "\r\n"
+headerParser = choice [try userAgentHParser, try acceptParser, try lengthParser, try typeParser, try acceptEncodingParser, try contentEncodingParser, hostParser] <* string "\r\n"
