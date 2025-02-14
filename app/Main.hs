@@ -122,7 +122,7 @@ findContentSize (_ : xs) = findContentSize xs
 
 findAcceptEncoding :: [Header] -> Maybe BC.ByteString
 findAcceptEncoding [] = Nothing
-findAcceptEncoding (AcceptEncodingH ua : _) = Just ua
+findAcceptEncoding (AcceptEncodingH ua : _) = if ua == "gzip" then Just ua else Nothing
 findAcceptEncoding (_ : xs) = findAcceptEncoding xs
 
 getNextData :: Socket -> IO BC.ByteString
