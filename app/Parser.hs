@@ -3,20 +3,23 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Parser (requestParser, Req(..), emptyReq, ByteStringWithChars(..)) where
+module Parser (requestParser, ByteStringWithChars(..)) where
 
-import Text.Megaparsec (choice, many, Parsec, satisfy, takeWhileP)
+import Text.Megaparsec (choice, many, Parsec, satisfy, takeWhileP, failure, try)
 import Data.Char (isDigit)
 import Text.Megaparsec.Char (string, char)
 import Text.Megaparsec.Stream (Stream(..), ShareInput(..), Token, Tokens, VisualStream(..))
 import Text.Megaparsec.Debug (dbg')
-import Data.Proxy
+import Control.Applicative (optional)
+import Data.Proxy ( Proxy(..) )
 import qualified Data.List.NonEmpty as NE (toList)
 import Data.Void(Void)
 import Data.Functor (($>))
 import Data.Bifunctor (second)
 import qualified Data.ByteString.Char8 as BC
-import Network.HTTP.Types (StdMethod(..), HttpVersion(..), http09)
+import Network.HTTP.Types (StdMethod(..), HttpVersion(..))
+import Request (Req(..), URI(..))
+import qualified Data.Set as Set
 
 newtype ByteStringWithChars = BS BC.ByteString
 
@@ -54,7 +57,7 @@ type MethodParser = Parsec Void ByteStringWithChars StdMethod
 
 type HTTPVersionParser = Parsec Void ByteStringWithChars HttpVersion
 
-type URIParser = Parsec Void ByteStringWithChars BC.ByteString
+type URIParser = Parsec Void ByteStringWithChars URI
 
 getParser :: MethodParser
 getParser = string "GET" $> GET
@@ -90,13 +93,7 @@ httpVersionParser :: HTTPVersionParser
 httpVersionParser = dbg' "version" (string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor))))
 
 uriParser :: URIParser
-uriParser = dbg' "uri" $ takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', ' '])
-
-data Req = Req {
-    method :: StdMethod,
-    uri :: BC.ByteString,
-    httpVersion :: HttpVersion
-} deriving Show
+uriParser = dbg' "uri" $ UNKNOWN <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', ' '])
 
 type ReqParser = Parsec Void ByteStringWithChars Req 
 
@@ -104,11 +101,14 @@ requestParser :: ReqParser
 requestParser = do
     m <- methodParser
     _ <- char ' '
-    u <- uriParser
+    u <- choice [try homeParser, echoParser, uriParser]
     _ <- char ' '
     v <- httpVersionParser
     _ <- string "\r\n"
     return $ Req{method = m, uri = u, httpVersion = v}
 
-emptyReq :: Req
-emptyReq = Req {method=GET, uri="", httpVersion = http09 }
+echoParser :: URIParser
+echoParser = dbg' "uri" ((optional (char '/') *> string "echo/") *> (ECHO <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r','\n','\\',' '])))
+
+homeParser :: URIParser
+homeParser = dbg' "uri" $ char '/' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r','\n','\\',' ']) >>= (\consumed -> if consumed == "" then pure HOME else failure Nothing Set.empty)

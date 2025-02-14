@@ -26,6 +26,7 @@ dependencies:
   - bytestring # useful to send bytes over the network
   - megaparsec
   - http-types
+  - containers
 
 executables:
   hs-http-server-clone-exe:

@@ -19,7 +19,10 @@ import Network.Socket
 import Network.Socket.ByteString (recv, send)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
 import Text.Megaparsec (parse)
-import Parser (requestParser, Req(..), emptyReq, ByteStringWithChars(..))
+import Network.HTTP.Types (StdMethod(..))
+import Parser (requestParser, ByteStringWithChars(..))
+import Request (Req(..), emptyReq, URI(..))
+import qualified Numeric as BC
 
 main :: IO ()
 main = do
@@ -46,12 +49,21 @@ main = do
     BC.putStrLn ("input: " <> reqInput)
     req <- either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
     BC.putStrLn $ "URI: " <> BC.pack (show req)
-    if uri req == "/"
+    if method req == GET
         then do
-            _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
+            case uri req of
+              HOME -> do
+                _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
+                pure ()
+              UNKNOWN _ -> do
+                _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
+                pure ()
+              ECHO s -> do
+                _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "<> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
+                pure ()
             close clientSocket
         else do
-            _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
+            _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
             close clientSocket
 
 getNextData :: Socket -> IO BC.ByteString
