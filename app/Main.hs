@@ -59,5 +59,5 @@ getNextData s = go s ""
   where
     go sInput acc = do
       next <- recv sInput 1
-      let end = BC.cons (BC.last acc) next
+      let end = if acc == "" then next else BC.cons (BC.last acc) next
       if end == "\r\n" then return (BC.concat [acc, next]) else go s (BC.concat [acc, next])
