@@ -1,25 +1,25 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Parser (requestParser, ByteStringWithChars(..)) where
+module Parser (requestParser, ByteStringWithChars (..)) where
 
-import Text.Megaparsec (choice, many, Parsec, satisfy, takeWhileP, failure, try)
-import Data.Char (isDigit)
-import Text.Megaparsec.Char (string, char)
-import Text.Megaparsec.Stream (Stream(..), ShareInput(..), Token, Tokens, VisualStream(..))
-import Text.Megaparsec.Debug (dbg')
-import Control.Applicative (optional)
-import Data.Proxy ( Proxy(..) )
-import qualified Data.List.NonEmpty as NE (toList)
-import Data.Void(Void)
-import Data.Functor (($>))
+import Control.Applicative (optional, (<|>))
 import Data.Bifunctor (second)
 import qualified Data.ByteString.Char8 as BC
-import Network.HTTP.Types (StdMethod(..), HttpVersion(..))
-import Request (Req(..), URI(..))
+import Data.Char (isDigit, toLower, toUpper)
+import Data.Functor (($>), (<&>))
+import qualified Data.List.NonEmpty as NE (toList)
+import Data.Proxy (Proxy (..))
 import qualified Data.Set as Set
+import Data.Void (Void)
+import Network.HTTP.Types (HttpVersion (..), StdMethod (..))
+import Request (Header (..), Req (..), URI (..))
+import Text.Megaparsec (Parsec, choice, failure, many, manyTill, satisfy, takeWhileP, try)
+import Text.Megaparsec.Char (char, string)
+import Text.Megaparsec.Debug (dbg')
+import Text.Megaparsec.Stream (ShareInput (..), Stream (..), Token, Tokens, VisualStream (..))
 
 newtype ByteStringWithChars = BS BC.ByteString
 
@@ -51,13 +51,15 @@ instance Stream ByteStringWithChars where
   takeWhile_ p s = second unShareInput $ takeWhile_ p (ShareInput s)
 
 instance VisualStream ByteStringWithChars where
-  showTokens Proxy = NE.toList 
+  showTokens Proxy = NE.toList
 
 type MethodParser = Parsec Void ByteStringWithChars StdMethod
 
 type HTTPVersionParser = Parsec Void ByteStringWithChars HttpVersion
 
 type URIParser = Parsec Void ByteStringWithChars URI
+
+type HeaderParser = Parsec Void ByteStringWithChars Header
 
 getParser :: MethodParser
 getParser = string "GET" $> GET
@@ -87,28 +89,52 @@ headParser :: MethodParser
 headParser = string "HEAD" $> HEAD
 
 methodParser :: MethodParser
-methodParser = dbg' "method" $ choice [getParser, postParser, patchParser, putParser, optionsParser, deleteParser, connectParser, traceParser, headParser]
+methodParser = choice [getParser, postParser, patchParser, putParser, optionsParser, deleteParser, connectParser, traceParser, headParser]
 
 httpVersionParser :: HTTPVersionParser
-httpVersionParser = dbg' "version" (string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor))))
+httpVersionParser = string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor)))
 
-uriParser :: URIParser
-uriParser = dbg' "uri" $ UNKNOWN <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', ' '])
+unknownParser :: URIParser
+unknownParser = Unknown <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', ' '])
 
-type ReqParser = Parsec Void ByteStringWithChars Req 
+type ReqParser = Parsec Void ByteStringWithChars Req
 
 requestParser :: ReqParser
 requestParser = do
-    m <- methodParser
-    _ <- char ' '
-    u <- choice [try homeParser, echoParser, uriParser]
-    _ <- char ' '
-    v <- httpVersionParser
-    _ <- string "\r\n"
-    return $ Req{method = m, uri = u, httpVersion = v}
+  m <- methodParser
+  _ <- char ' '
+  u <- choice [try homeParser, try userAgentParser, try echoParser, unknownParser]
+  _ <- char ' '
+  v <- httpVersionParser
+  _ <- string "\r\n"
+  h <- manyTill headerParser (string "\r\n")
+  return $ Req {method = m, uri = u, httpVersion = v, headers = h}
 
 echoParser :: URIParser
-echoParser = dbg' "uri" ((optional (char '/') *> string "echo/") *> (ECHO <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r','\n','\\',' '])))
+echoParser = (optional (char '/') *> string "echo/") *> (Echo <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
 
 homeParser :: URIParser
-homeParser = dbg' "uri" $ char '/' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r','\n','\\',' ']) >>= (\consumed -> if consumed == "" then pure HOME else failure Nothing Set.empty)
+homeParser = char '/' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure Home else failure Nothing Set.empty)
+
+userAgentParser :: URIParser
+userAgentParser = char '/' *> string "user-agent/" *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure UserAgent else failure Nothing Set.empty)
+
+caseInsensitiveChar :: Char -> Parsec Void ByteStringWithChars Char
+caseInsensitiveChar c = try ((char . toLower) c) <|> (char . toUpper) c
+
+caseInsensitiveString :: BC.ByteString -> Parsec Void ByteStringWithChars BC.ByteString
+caseInsensitiveString st = case BC.uncons st of
+  Just (x, xs) -> caseInsensitiveChar x >>= (\y -> BC.cons y <$> caseInsensitiveString xs)
+  Nothing -> pure ""
+
+userAgentHParser :: HeaderParser
+userAgentHParser = caseInsensitiveString "User-Agent" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> UserAgentH
+
+hostParser :: HeaderParser
+hostParser = caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> HostH
+
+acceptParser :: HeaderParser
+acceptParser = caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
+
+headerParser :: HeaderParser
+headerParser = choice [userAgentHParser, acceptParser, hostParser] <* string "\r\n"

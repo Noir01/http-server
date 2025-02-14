@@ -4,6 +4,7 @@ module Main (main) where
 
 import Control.Monad (forever)
 import qualified Data.ByteString.Char8 as BC
+import Network.HTTP.Types (StdMethod (..))
 import Network.Socket
   ( AddrInfo (addrAddress, addrFamily),
     Socket,
@@ -17,12 +18,10 @@ import Network.Socket
     socket,
   )
 import Network.Socket.ByteString (recv, send)
+import Parser (ByteStringWithChars (..), requestParser)
+import Request (Header (UserAgentH), Req (..), URI (..), emptyReq)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
 import Text.Megaparsec (parse)
-import Network.HTTP.Types (StdMethod(..))
-import Parser (requestParser, ByteStringWithChars(..))
-import Request (Req(..), emptyReq, URI(..))
-import qualified Numeric as BC
 
 main :: IO ()
 main = do
@@ -50,21 +49,34 @@ main = do
     req <- either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
     BC.putStrLn $ "URI: " <> BC.pack (show req)
     if method req == GET
-        then do
-            case uri req of
-              HOME -> do
-                _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
+      then do
+        case uri req of
+          Home -> do
+            _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
+            pure ()
+          Unknown _ -> do
+            _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
+            pure ()
+          Echo s -> do
+            _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
+            pure ()
+          UserAgent -> do
+            case findUserAgent $ headers req of
+              Nothing -> do
+                _ <- send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
                 pure ()
-              UNKNOWN _ -> do
-                _ <- send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
+              Just ua -> do
+                _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua
                 pure ()
-              ECHO s -> do
-                _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "<> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
-                pure ()
-            close clientSocket
-        else do
-            _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
-            close clientSocket
+        close clientSocket
+      else do
+        _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
+        close clientSocket
+
+findUserAgent :: [Header] -> Maybe BC.ByteString
+findUserAgent [] = Nothing
+findUserAgent (UserAgentH ua : _) = Just ua
+findUserAgent (x : xs) = findUserAgent xs
 
 getNextData :: Socket -> IO BC.ByteString
 getNextData s = go s ""
@@ -72,4 +84,4 @@ getNextData s = go s ""
     go sInput acc = do
       next <- recv sInput 1
       let end = if acc == "" then next else BC.cons (BC.last acc) next
-      if end == "\r\n" then return (BC.concat [acc, next]) else go s (BC.concat [acc, next])
+      if end == "\r\n" then return (acc <> next) else go s (acc <> next)

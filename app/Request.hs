@@ -1,19 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Request (Req(..), emptyReq, URI(..)) where
+module Request (Req (..), emptyReq, URI (..), Header (..)) where
 
 import qualified Data.ByteString.Char8 as BC
-import Network.HTTP.Types (StdMethod(..), HttpVersion(..), http09)
+import Network.HTTP.Types (HttpVersion (..), StdMethod (..), http09)
 
-data URI = HOME | ECHO BC.ByteString | UNKNOWN BC.ByteString
-    deriving Show
+data URI = Home | Echo BC.ByteString | UserAgent | Unknown BC.ByteString
+  deriving (Show)
 
-data Req = Req {
+data Header = HostH BC.ByteString | ContentTypeH String | ContentLenghtH Int | AcceptH String | UserAgentH BC.ByteString | CustomHeader String BC.ByteString
+  deriving (Show)
+
+data Req = Req
+  { headers :: [Header],
     method :: StdMethod,
     uri :: URI,
     httpVersion :: HttpVersion
-} deriving Show
-
+  }
+  deriving (Show)
 
 emptyReq :: Req
-emptyReq = Req {method=GET, uri=UNKNOWN "", httpVersion = http09 }
+emptyReq = Req {headers = [], method = GET, uri = Unknown "", httpVersion = http09}
