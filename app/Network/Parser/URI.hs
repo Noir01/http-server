@@ -28,4 +28,4 @@ userAgentParser :: URIParser
 userAgentParser = char '/' *> string "user-agent" *> optional (char '/') *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure UserAgent else failure Nothing Set.empty)
 
 fileParser :: URIParser
-fileParser = string "/echo" *> optional (char '/') *> (File <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
+fileParser = string "/files" *> optional (char '/') *> (File <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
