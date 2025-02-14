@@ -12,7 +12,7 @@ data Header = HostH BC.ByteString | ContentTypeH String | ContentLenghtH Int | A
   deriving (Show)
 
 data Req = Req
-  { headers :: [Header],
+  {
     method :: StdMethod,
     uri :: URI,
     httpVersion :: HttpVersion
@@ -20,4 +20,4 @@ data Req = Req
   deriving (Show)
 
 emptyReq :: Req
-emptyReq = Req {headers = [], method = GET, uri = Unknown "", httpVersion = http09}
+emptyReq = Req {method = GET, uri = Unknown "", httpVersion = http09}

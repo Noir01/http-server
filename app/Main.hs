@@ -18,10 +18,10 @@ import Network.Socket
     socket,
   )
 import Network.Socket.ByteString (recv, send)
-import Parser (ByteStringWithChars (..), requestParser)
+import Parser (ByteStringWithChars (..), requestParser, headerParser)
 import Request (Header (UserAgentH), Req (..), URI (..), emptyReq)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
-import Text.Megaparsec (parse)
+import Text.Megaparsec (parse, many)
 
 main :: IO ()
 main = do
@@ -44,9 +44,8 @@ main = do
     (clientSocket, clientAddr) <- accept serverSocket
     BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
     -- Handle the clientSocket as needed...
-    reqInput <- getNextData clientSocket
-    BC.putStrLn ("input: " <> reqInput)
-    req <- either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
+    req <- readRequestLine clientSocket
+    hs <- readHeaders clientSocket
     BC.putStrLn $ "URI: " <> BC.pack (show req)
     if method req == GET
       then do
@@ -61,7 +60,7 @@ main = do
             _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s
             pure ()
           UserAgent -> do
-            case findUserAgent $ headers req of
+            case findUserAgent hs of
               Nothing -> do
                 _ <- send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
                 pure ()
@@ -85,3 +84,20 @@ getNextData s = go s ""
       next <- recv sInput 1
       let end = if acc == "" then next else BC.cons (BC.last acc) next
       if end == "\r\n" then return (acc <> next) else go s (acc <> next)
+
+readRequestLine :: Socket -> IO Req
+readRequestLine sock = do
+    reqInput <- getNextData sock 
+    BC.putStrLn ("input: " <> reqInput)
+    either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
+
+readHeaders :: Socket -> IO [Header]
+readHeaders sock = do
+  hs <- readHeadersBytes sock
+  either (const $ return []) return . parse (many headerParser) "" . BS $ hs
+  where
+    readHeadersBytes s = do
+      header <- getNextData s
+      if header == "\r\n"
+        then return ""
+        else (header <>) <$> readHeadersBytes s

@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Parser (requestParser, ByteStringWithChars (..)) where
+module Parser (requestParser, ByteStringWithChars (..), headerParser) where
 
 import Control.Applicative (optional, (<|>))
 import Data.Bifunctor (second)
@@ -107,8 +107,7 @@ requestParser = do
   _ <- char ' '
   v <- httpVersionParser
   _ <- string "\r\n"
-  h <- dbg' "headers" (manyTill headerParser (string "\r\n"))
-  return $ Req {method = m, uri = u, httpVersion = v, headers = h}
+  return $ Req {method = m, uri = u, httpVersion = v}
 
 echoParser :: URIParser
 echoParser = (optional (char '/') *> string "echo/") *> (Echo <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
