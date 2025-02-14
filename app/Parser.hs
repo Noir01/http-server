@@ -87,10 +87,10 @@ methodParser :: MethodParser
 methodParser = dbg' "method" $ choice [getParser, postParser, patchParser, putParser, optionsParser, deleteParser, connectParser, traceParser, headParser]
 
 httpVersionParser :: HTTPVersionParser
-httpVersionParser = string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor)))
+httpVersionParser = dbg' "version" (string "HTTP/" *> many (satisfy isDigit) >>= (\major -> char '.' *> many (satisfy isDigit) >>= (\minor -> pure $ HttpVersion (maybe (error "Unexpected") fst . BC.readInt $ BC.pack major) (maybe (error "Unexpected") fst . BC.readInt $ BC.pack minor))))
 
 uriParser :: URIParser
-uriParser = takeWhileP Nothing (\tok -> tok `elem` ['\r', '\n', ' '])
+uriParser = dbg' "uri" $ takeWhileP Nothing (\tok -> tok `elem` ['\r', '\n', ' '])
 
 data Req = Req {
     method :: StdMethod,
