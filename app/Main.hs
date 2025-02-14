@@ -73,6 +73,7 @@ server clientSocket folder = do
                         body <- readBody clientSocket size
                         resolvePostRequest clientSocket req body folder
                       Nothing -> do
+                        putStrLn ("POST without content length header: " <> show hs)
                         void $ send clientSocket "HTTP/1.1 400 Bad Request\r\n\r\n"
                   else void $ send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
 
