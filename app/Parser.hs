@@ -110,13 +110,13 @@ requestParser = do
   return $ Req {method = m, uri = u, httpVersion = v}
 
 echoParser :: URIParser
-echoParser = (optional (char '/') *> string "echo/") *> (Echo <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
+echoParser = string "/echo" *> optional (char '/') *> (Echo <$> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']))
 
 homeParser :: URIParser
 homeParser = char '/' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure Home else failure Nothing Set.empty)
 
 userAgentParser :: URIParser
-userAgentParser = char '/' *> string "user-agent/" *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure UserAgent else failure Nothing Set.empty)
+userAgentParser = char '/' *> string "user-agent" *> optional (char '/') *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n', '\\', ' ']) >>= (\consumed -> if consumed == "" then pure UserAgent else failure Nothing Set.empty)
 
 caseInsensitiveChar :: Char -> Parsec Void ByteStringWithChars Char
 caseInsensitiveChar c = try ((char . toLower) c) <|> (char . toUpper) c
