@@ -80,6 +80,7 @@ resolveGetRequest clientSocket req hs folder = do
                   Just ua -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua)
               File s -> do
                 exists <- doesFileExist (folder <> BC.unpack s)
+                BC.putStr s
                 if exists
                   then do
                     contents <- BC.readFile (folder <> BC.unpack s)
