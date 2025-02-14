@@ -24,6 +24,8 @@ dependencies:
   - base >= 4.7 && < 5
   - network # establish a simple TCP network
   - bytestring # useful to send bytes over the network
+  - megaparsec
+  - http-types
 
 executables:
   hs-http-server-clone-exe:
