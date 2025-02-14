@@ -40,7 +40,7 @@ main = do
   listen serverSocket 5
 
   -- Accept connections and handle them forever
-  _ <- forever $ do
+  _ <- do
         (clientSocket, clientAddr) <- accept serverSocket
         BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
         -- Handle the clientSocket as needed...
