@@ -76,7 +76,7 @@ main = do
 findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing
 findUserAgent (UserAgentH ua : _) = Just ua
-findUserAgent (x : xs) = findUserAgent xs
+findUserAgent (_ : xs) = findUserAgent xs
 
 getNextData :: Socket -> IO BC.ByteString
 getNextData s = go s ""

@@ -107,7 +107,7 @@ requestParser = do
   _ <- char ' '
   v <- httpVersionParser
   _ <- string "\r\n"
-  h <- manyTill headerParser (string "\r\n")
+  h <- dbg' "headers" (manyTill headerParser (string "\r\n"))
   return $ Req {method = m, uri = u, httpVersion = v, headers = h}
 
 echoParser :: URIParser
@@ -128,13 +128,13 @@ caseInsensitiveString st = case BC.uncons st of
   Nothing -> pure ""
 
 userAgentHParser :: HeaderParser
-userAgentHParser = caseInsensitiveString "User-Agent" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> UserAgentH
+userAgentHParser = dbg' "header user agent" $ caseInsensitiveString "User-Agent" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> UserAgentH
 
 hostParser :: HeaderParser
-hostParser = caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> HostH
+hostParser = dbg' "header host" $ caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> HostH
 
 acceptParser :: HeaderParser
-acceptParser = caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
+acceptParser = dbg' "header accept" $ caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
 
 headerParser :: HeaderParser
 headerParser = choice [userAgentHParser, acceptParser, hostParser] <* string "\r\n"
