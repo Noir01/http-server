@@ -11,7 +11,7 @@ import Network.Socket
     SocketType (Stream),
     accept,
     bind,
-    close,
+    close',
     defaultProtocol,
     getAddrInfo,
     listen,
@@ -57,7 +57,7 @@ main = do
               Nothing -> send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n" >>= const (return ())
               Just ua -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua) >>= const (return ())
       else send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n" >>= const (return ())
-    close clientSocket
+    close' clientSocket
     putStrLn "closed"
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
