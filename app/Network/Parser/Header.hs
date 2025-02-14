@@ -14,7 +14,6 @@ import Text.Parser (ByteStringWithChars(..))
 import Text.Megaparsec.Char (char, string)
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Char8 as BC
-import Network.HTTP.Types.Status (partialContent206)
 
 type HeaderParser = Parsec Void ByteStringWithChars Header
 

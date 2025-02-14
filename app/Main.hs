@@ -83,7 +83,7 @@ resolvePostRequest clientSocket req body folder = do
               File s -> do
                     putStrLn "POST /files"
                     BC.writeFile (folder <> BC.unpack s) body
-                    void $ send clientSocket "HTTP/1.1 201 OK\r\n\r\n"
+                    void $ send clientSocket "HTTP/1.1 201 Created\r\n\r\n"
               _ -> do
                 putStrLn ("POST something that is not files" <> show req)
                 void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
