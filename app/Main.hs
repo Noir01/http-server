@@ -30,7 +30,6 @@ import Network.Parser.Request (requestParser)
 import Network.Parser.Header (headerParser)
 import System.Environment (getArgs)
 import System.Directory (doesFileExist)
-import Data.ByteString (ByteString)
 
 main :: IO ()
 main = do
@@ -69,9 +68,12 @@ server clientSocket folder = do
           then resolveGetRequest clientSocket req hs folder
           else if method req == POST
                   then do
-                    let Just size = findContentSize hs
-                    body <- readBody clientSocket size
-                    resolvePostRequest clientSocket req body folder
+                    case findContentSize hs of
+                      Just size -> do
+                        body <- readBody clientSocket size
+                        resolvePostRequest clientSocket req body folder
+                      Nothing -> do
+                        void $ send clientSocket "HTTP/1.1 400 Bad Request\r\n\r\n"
                   else void $ send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
 
 resolvePostRequest :: Socket -> Req -> BC.ByteString -> FilePath -> IO ()

@@ -33,5 +33,11 @@ hostParser = caseInsensitiveString "Host" *> char ':' *> char ' ' *> takeWhileP 
 acceptParser :: HeaderParser
 acceptParser = caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
 
+lengthParser :: HeaderParser
+lengthParser = caseInsensitiveString "Content-Length" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
+
+typeParser :: HeaderParser
+typeParser = caseInsensitiveString "Content-Type" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
+
 headerParser :: HeaderParser
-headerParser = choice [try userAgentHParser, try acceptParser, hostParser] <* string "\r\n"
+headerParser = choice [try userAgentHParser, try acceptParser, try lengthParser, try typeParser, hostParser] <* string "\r\n"
