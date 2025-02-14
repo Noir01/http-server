@@ -28,6 +28,7 @@ dependencies:
   - http-types
   - containers
   - directory
+  - split
 
 executables:
   hs-http-server-clone-exe:

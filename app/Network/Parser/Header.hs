@@ -14,6 +14,7 @@ import Text.Parser (ByteStringWithChars(..))
 import Text.Megaparsec.Char (char, string)
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Char8 as BC
+import Data.List.Split
 
 type HeaderParser = Parsec Void ByteStringWithChars Header
 
@@ -41,7 +42,7 @@ typeParser :: HeaderParser
 typeParser = caseInsensitiveString "Content-Type" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (ContentTypeH . BC.unpack)
 
 acceptEncodingParser :: HeaderParser
-acceptEncodingParser = caseInsensitiveString "Accept-Encoding" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> AcceptEncodingH
+acceptEncodingParser = caseInsensitiveString "Accept-Encoding" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> AcceptEncodingH . fmap BC.pack . splitOn ", " . BC.unpack
 
 contentEncodingParser :: HeaderParser
 contentEncodingParser = caseInsensitiveString "Content-Encoding" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> ContentEncodingH

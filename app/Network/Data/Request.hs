@@ -9,7 +9,7 @@ data URI = Home | Echo BC.ByteString | UserAgent | Unknown BC.ByteString | File 
   deriving (Show)
 
 data Header = HostH BC.ByteString | ContentTypeH String | ContentLenghtH Int | AcceptH String | UserAgentH BC.ByteString | CustomHeader String BC.ByteString
-    | ContentEncodingH BC.ByteString | AcceptEncodingH BC.ByteString
+    | ContentEncodingH BC.ByteString | AcceptEncodingH [BC.ByteString]
   deriving (Show)
 
 data Req = Req
