@@ -14,6 +14,7 @@ import Text.Parser (ByteStringWithChars(..))
 import Text.Megaparsec.Char (char, string)
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Char8 as BC
+import Network.HTTP.Types.Status (partialContent206)
 
 type HeaderParser = Parsec Void ByteStringWithChars Header
 
@@ -35,7 +36,7 @@ acceptParser :: HeaderParser
 acceptParser = caseInsensitiveString "Accept" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (AcceptH . BC.unpack)
 
 lengthParser :: HeaderParser
-lengthParser = caseInsensitiveString "Content-Length" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (ContentLenghtH . maybe 0 (fst . first ContentLenghtH) . BC.readInt)
+lengthParser = caseInsensitiveString "Content-Length" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (maybe (ContentLenghtH 0) (fst . first ContentLenghtH) . BC.readInt)
 
 typeParser :: HeaderParser
 typeParser = caseInsensitiveString "Content-Type" *> char ':' *> char ' ' *> takeWhileP Nothing (\tok -> tok `notElem` ['\r', '\n']) <&> (ContentTypeH . BC.unpack)
