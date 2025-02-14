@@ -5,6 +5,7 @@ module Main (main) where
 import Control.Concurrent (forkFinally)
 import Control.Monad (forever, void)
 import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Lazy as BL
 import Network.HTTP.Types (StdMethod (..))
 import Network.Socket
   ( AddrInfo (addrAddress, addrFamily),
@@ -30,6 +31,7 @@ import Network.Parser.Request (requestParser)
 import Network.Parser.Header (headerParser)
 import System.Environment (getArgs)
 import System.Directory (doesFileExist)
+import qualified Codec.Compression.GZip as GZip
 
 main :: IO ()
 main = do
@@ -94,10 +96,11 @@ resolveGetRequest clientSocket req hs folder = do
   let contentEncoding = case compressionScheme of
                             Just x -> "Content-Encoding: " <> x <>"\r\n"
                             Nothing -> ""
+  let transformer = (if contentEncoding == "" then id else GZip.compress) . BC.fromStrict
   case uri req of
               Home -> void $ send clientSocket ("HTTP/1.1 200 OK\r\n" <> contentEncoding <> "\r\n")
               Unknown _ -> void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
-              Echo s -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n" <> contentEncoding <> "\r\n" <> s)
+              Echo s -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BL.length . transformer) s <> "\r\n" <> contentEncoding <> "\r\n" <> (BC.toStrict . transformer) s)
               UserAgent -> do
                 case findUserAgent hs of
                   Nothing -> void $ send clientSocket "HTTP/1.1 400 OK\r\n\r\n"

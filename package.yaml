@@ -29,6 +29,7 @@ dependencies:
   - containers
   - directory
   - split
+  - zlib
 
 executables:
   hs-http-server-clone-exe:
