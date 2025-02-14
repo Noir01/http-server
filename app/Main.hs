@@ -64,11 +64,13 @@ main = do
                 _ <- send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
                 close clientSocket
               Just ua -> do
-                send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua) >>= print
+                x <- send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua)
                 close clientSocket
+                print x
       else do
         _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
         close clientSocket
+    close clientSocket
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing
