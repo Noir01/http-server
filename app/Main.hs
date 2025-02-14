@@ -6,7 +6,6 @@ import Control.Concurrent (forkFinally)
 import Control.Monad (forever, void)
 import qualified Data.ByteString.Char8 as BC
 import Network.HTTP.Types (StdMethod (..))
-import Data.Functor (($>))
 import Network.Socket
   ( AddrInfo (addrAddress, addrFamily),
     Socket,
@@ -23,13 +22,21 @@ import Network.Socket
     SocketOption (ReuseAddr)
   )
 import Network.Socket.ByteString (recv, send)
-import Parser (ByteStringWithChars (..), requestParser, headerParser)
-import Request (Header (UserAgentH), Req (..), URI (..), emptyReq)
+import Text.Parser (ByteStringWithChars (..))
+import Network.Data.Request (Header (UserAgentH), Req (..), URI (..), emptyReq)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
 import Text.Megaparsec (parse, many)
+import Network.Parser.Request (requestParser)
+import Network.Parser.Header (headerParser)
+import System.Environment (getArgs)
+import System.Directory (doesFileExist)
 
 main :: IO ()
 main = do
+  args <- getArgs
+  let folder = if not (null args)
+                then args !! 1
+                else "/tmp"
   hSetBuffering stdout LineBuffering
 
   let host = "127.0.0.1"
@@ -50,19 +57,19 @@ main = do
         (clientSocket, clientAddr) <- accept serverSocket
         BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
         -- Handle the clientSocket as needed...
-        forkFinally (server clientSocket) (const $ gracefulClose clientSocket 5000)
+        forkFinally (server clientSocket folder) (const $ gracefulClose clientSocket 5000)
   close serverSocket
 
-server :: Socket -> IO ()
-server clientSocket = do
+server :: Socket -> FilePath -> IO ()
+server clientSocket folder = do
         req <- readRequestLine clientSocket
         hs <- readHeaders clientSocket
         if method req == GET
-          then resolveGetRequest clientSocket req hs
+          then resolveGetRequest clientSocket req hs folder
           else void $ send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
 
-resolveGetRequest :: Socket -> Req -> [Header] -> IO ()
-resolveGetRequest clientSocket req hs = do
+resolveGetRequest :: Socket -> Req -> [Header] -> FilePath -> IO ()
+resolveGetRequest clientSocket req hs folder = do
   case uri req of
               Home -> void $ send clientSocket "HTTP/1.1 200 OK\r\n\r\n"
               Unknown _ -> void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
@@ -71,6 +78,13 @@ resolveGetRequest clientSocket req hs = do
                 case findUserAgent hs of
                   Nothing -> void $ send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
                   Just ua -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua)
+              File s -> do
+                exists <- doesFileExist (folder <> BC.unpack s)
+                if exists
+                  then do
+                    contents <- BC.readFile (folder <> BC.unpack s)
+                    void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length:" <> (BC.pack . show . BC.length) contents <> "\r\n\r\n" <> contents)
+                  else void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" 
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing

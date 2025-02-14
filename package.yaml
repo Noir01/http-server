@@ -27,6 +27,7 @@ dependencies:
   - megaparsec
   - http-types
   - containers
+  - directory
 
 executables:
   hs-http-server-clone-exe:
