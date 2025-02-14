@@ -92,22 +92,22 @@ resolveGetRequest :: Socket -> Req -> [Header] -> FilePath -> IO ()
 resolveGetRequest clientSocket req hs folder = do
   let compressionScheme = findAcceptEncoding hs
   let contentEncoding = case compressionScheme of
-                            Just x -> "Content-Encoding: " <> x
+                            Just x -> "Content-Encoding: " <> x <>"\r\n"
                             Nothing -> ""
   case uri req of
-              Home -> void $ send clientSocket ("HTTP/1.1 200 OK\r\n" <> contentEncoding <> "\r\n\r\n")
+              Home -> void $ send clientSocket ("HTTP/1.1 200 OK\r\n" <> contentEncoding <> "\r\n")
               Unknown _ -> void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
-              Echo s -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n" <> contentEncoding <> "\r\n\r\n" <> s)
+              Echo s -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n" <> contentEncoding <> "\r\n" <> s)
               UserAgent -> do
                 case findUserAgent hs of
                   Nothing -> void $ send clientSocket "HTTP/1.1 400 OK\r\n\r\n"
-                  Just ua -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n" <> contentEncoding <> "\r\n\r\n" <> ua)
+                  Just ua -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n" <> contentEncoding <> "\r\n" <> ua)
               File s -> do
                 exists <- doesFileExist (folder <> BC.unpack s)
                 if exists
                   then do
                     contents <- BC.readFile (folder <> BC.unpack s)
-                    void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length:" <> (BC.pack . show . BC.length) contents <> "\r\n" <> contentEncoding <> "\r\n\r\n" <> contents)
+                    void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length:" <> (BC.pack . show . BC.length) contents <> "\r\n" <> contentEncoding <> "\r\n" <> contents)
                   else void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" 
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
