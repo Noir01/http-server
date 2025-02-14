@@ -23,13 +23,14 @@ import Network.Socket
   )
 import Network.Socket.ByteString (recv, send)
 import Text.Parser (ByteStringWithChars (..))
-import Network.Data.Request (Header (UserAgentH), Req (..), URI (..), emptyReq)
+import Network.Data.Request (Header (UserAgentH, ContentLenghtH), Req (..), URI (..), emptyReq)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
 import Text.Megaparsec (parse, many)
 import Network.Parser.Request (requestParser)
 import Network.Parser.Header (headerParser)
 import System.Environment (getArgs)
 import System.Directory (doesFileExist)
+import Data.ByteString (ByteString)
 
 main :: IO ()
 main = do
@@ -66,8 +67,25 @@ server clientSocket folder = do
         hs <- readHeaders clientSocket
         if method req == GET
           then resolveGetRequest clientSocket req hs folder
-          else void $ send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
+          else if method req == POST
+                  then do
+                    let Just size = findContentSize hs
+                    body <- readBody clientSocket size
+                    resolvePostRequest clientSocket req body folder
+                  else void $ send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
 
+resolvePostRequest :: Socket -> Req -> BC.ByteString -> FilePath -> IO ()
+resolvePostRequest clientSocket req body folder = do
+  case uri req of
+              File s -> do
+                exists <- doesFileExist (folder <> BC.unpack s)
+                if exists
+                  then do
+                    BC.writeFile (folder <> BC.unpack s) body
+                    void $ send clientSocket "HTTP/1.1 201 OK\r\n\r\n"
+                  else void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" 
+              _ -> void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n"
+              
 resolveGetRequest :: Socket -> Req -> [Header] -> FilePath -> IO ()
 resolveGetRequest clientSocket req hs folder = do
   case uri req of
@@ -80,7 +98,6 @@ resolveGetRequest clientSocket req hs folder = do
                   Just ua -> void $ send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua)
               File s -> do
                 exists <- doesFileExist (folder <> BC.unpack s)
-                BC.putStr s
                 if exists
                   then do
                     contents <- BC.readFile (folder <> BC.unpack s)
@@ -91,6 +108,11 @@ findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing
 findUserAgent (UserAgentH ua : _) = Just ua
 findUserAgent (_ : xs) = findUserAgent xs
+
+findContentSize :: [Header] -> Maybe Int
+findContentSize [] = Nothing
+findContentSize (ContentLenghtH ua : _) = Just ua
+findContentSize (_ : xs) = findContentSize xs
 
 getNextData :: Socket -> IO BC.ByteString
 getNextData s = go s ""
@@ -104,6 +126,9 @@ readRequestLine :: Socket -> IO Req
 readRequestLine sock = do
     reqInput <- getNextData sock 
     either (const $ return emptyReq) return . parse requestParser "" . BS $ reqInput
+
+readBody :: Socket -> Int -> IO BC.ByteString
+readBody = recv
 
 readHeaders :: Socket -> IO [Header]
 readHeaders sock = do
