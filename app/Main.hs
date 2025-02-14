@@ -45,7 +45,7 @@ main = do
     BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
     -- Handle the clientSocket as needed...
     req <- getNextData clientSocket >>= either (const $ return emptyReq) return . parse requestParser "" . BS
-    BC.putStrLn $ "URI: " <> uri req
+    BC.putStrLn $ "URI: " <> BC.pack (show req)
     if uri req == "/"
         then do
             _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n"

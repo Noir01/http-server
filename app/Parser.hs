@@ -91,7 +91,7 @@ data Req = Req {
     method :: StdMethod,
     uri :: BC.ByteString,
     httpVersion :: HttpVersion
-}
+} deriving Show
 
 type ReqParser = Parsec Void ByteStringWithChars Req 
 
