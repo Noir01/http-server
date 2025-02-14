@@ -14,6 +14,7 @@ import Network.Socket
       defaultProtocol,
       AddrInfo(addrAddress, addrFamily),
       SocketType(Stream) )
+import Network.Socket.ByteString (send)
 import System.IO (BufferMode (..), hSetBuffering, stdout)
 
 main :: IO ()
@@ -37,5 +38,5 @@ main = do
         (clientSocket, clientAddr) <- accept serverSocket
         BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
         -- Handle the clientSocket as needed...
-    
+        _ <- send clientSocket "HTTP/1.1 200 OK\r\n\r\n" 
         close clientSocket
