@@ -68,6 +68,7 @@ main = do
                 _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua
                 pure ()
         close clientSocket
+        putStr "closed"
       else do
         _ <- send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n"
         close clientSocket
