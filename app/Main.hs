@@ -81,6 +81,7 @@ resolvePostRequest clientSocket req body folder = do
                 exists <- doesFileExist (folder <> BC.unpack s)
                 if exists
                   then do
+                    putStrLn "POST /files"
                     BC.writeFile (folder <> BC.unpack s) body
                     void $ send clientSocket "HTTP/1.1 201 OK\r\n\r\n"
                   else void $ send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" 
