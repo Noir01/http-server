@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 import Data.Void (Void)
 import Network.HTTP.Types (HttpVersion (..), StdMethod (..))
 import Request (Header (..), Req (..), URI (..))
-import Text.Megaparsec (Parsec, choice, failure, many, manyTill, satisfy, takeWhileP, try)
+import Text.Megaparsec (Parsec, choice, failure, many, satisfy, takeWhileP, try)
 import Text.Megaparsec.Char (char, string)
 import Text.Megaparsec.Debug (dbg')
 import Text.Megaparsec.Stream (ShareInput (..), Stream (..), Token, Tokens, VisualStream (..))

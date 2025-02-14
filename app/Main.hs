@@ -66,7 +66,7 @@ main = do
                 pure ()
               Just ua -> do
                 _ <- send clientSocket $ "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua
-                pure ()
+                putStr "sent"
         close clientSocket
         putStr "closed"
       else do
