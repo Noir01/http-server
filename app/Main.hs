@@ -40,25 +40,26 @@ main = do
   listen serverSocket 5
 
   -- Accept connections and handle them forever
-  forever $ do
-    (clientSocket, clientAddr) <- accept serverSocket
-    BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
-    -- Handle the clientSocket as needed...
-    req <- readRequestLine clientSocket
-    hs <- readHeaders clientSocket
-    if method req == GET
-      then do
-        case uri req of
-          Home -> send clientSocket "HTTP/1.1 200 OK\r\n\r\n" >>= const (return ())
-          Unknown _ -> send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" >>= const (return ())
-          Echo s -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s) >>= const (return ())
-          UserAgent -> do
-            case findUserAgent hs of
-              Nothing -> send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n" >>= const (return ())
-              Just ua -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua) >>= const (return ())
-      else send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n" >>= const (return ())
-    close' clientSocket
-    putStrLn "closed"
+  _ <- forever $ do
+        (clientSocket, clientAddr) <- accept serverSocket
+        BC.putStrLn $ "Accepted connection from " <> BC.pack (show clientAddr) <> "."
+        -- Handle the clientSocket as needed...
+        req <- readRequestLine clientSocket
+        hs <- readHeaders clientSocket
+        if method req == GET
+          then do
+            case uri req of
+              Home -> send clientSocket "HTTP/1.1 200 OK\r\n\r\n" >>= const (return ())
+              Unknown _ -> send clientSocket "HTTP/1.1 404 Not Found\r\n\r\n" >>= const (return ())
+              Echo s -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) s <> "\r\n\r\n" <> s) >>= const (return ())
+              UserAgent -> do
+                case findUserAgent hs of
+                  Nothing -> send clientSocket "HTTP/1.1 400 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n" >>= const (return ())
+                  Just ua -> send clientSocket ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " <> (BC.pack . show . BC.length) ua <> "\r\n\r\n" <> ua) >>= const (return ())
+          else send clientSocket "HTTP/1.1 405 Method Not Allowed\r\n\r\n" >>= const (return ())
+        close' clientSocket
+        putStrLn "closed"
+  putStrLn "Finished"
 
 findUserAgent :: [Header] -> Maybe BC.ByteString
 findUserAgent [] = Nothing
